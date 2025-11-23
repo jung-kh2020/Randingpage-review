@@ -20,10 +20,20 @@ export const Footer: React.FC = () => {
     return params.get('id');
   };
 
-  // 저장된 링크 불러오기 (API에서)
+  // 저장된 링크 불러오기
   useEffect(() => {
     const pageId = getPageId();
     if (pageId) {
+      // 개발 환경: localStorage 사용
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        const savedLink = localStorage.getItem(`ctaLink_${pageId}`);
+        if (savedLink) {
+          setCurrentLink(savedLink);
+        }
+        return;
+      }
+
+      // 프로덕션: API에서 불러오기
       fetch(`/api/links/${pageId}`)
         .then(res => {
           if (res.ok) return res.json();
@@ -69,7 +79,22 @@ export const Footer: React.FC = () => {
     }
 
     try {
-      // API로 링크 저장
+      // 개발 환경에서는 localStorage 사용
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        localStorage.setItem(`ctaLink_${newPageId}`, linkUrl);
+
+        // URL 업데이트
+        const baseUrl = window.location.origin + window.location.pathname;
+        const newUrl = `${baseUrl}?id=${newPageId}`;
+        window.history.pushState({}, '', newUrl);
+
+        setCurrentLink(linkUrl);
+        setShowLinkModal(false);
+        alert('링크가 저장되었습니다! (로컬 개발 모드)\n고유 URL이 생성되었습니다.');
+        return;
+      }
+
+      // 프로덕션: API로 링크 저장
       const response = await fetch(`/api/links/${newPageId}`, {
         method: 'POST',
         headers: {
