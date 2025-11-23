@@ -7,18 +7,35 @@ export const Footer: React.FC = () => {
   const [password, setPassword] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [currentLink, setCurrentLink] = useState('');
+  const [newPageId, setNewPageId] = useState('');
+
+  // 고유 ID 생성 함수
+  const generateUniqueId = () => {
+    return Math.random().toString(36).substring(2, 10);
+  };
 
   // URL 파라미터에서 ID 가져오기
   const getPageId = () => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('id') || 'default';
+    return params.get('id');
   };
 
-  // 저장된 링크 불러오기
+  // 저장된 링크 불러오기 (API에서)
   useEffect(() => {
     const pageId = getPageId();
-    const savedLink = localStorage.getItem(`ctaLink_${pageId}`);
-    setCurrentLink(savedLink || '');
+    if (pageId) {
+      fetch(`/api/links/${pageId}`)
+        .then(res => {
+          if (res.ok) return res.json();
+          return null;
+        })
+        .then(data => {
+          if (data && data.link) {
+            setCurrentLink(data.link);
+          }
+        })
+        .catch(err => console.error('Failed to fetch link:', err));
+    }
   }, []);
 
   const handleCopyrightClick = () => {
@@ -29,9 +46,13 @@ export const Footer: React.FC = () => {
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (password === '1234') {
+      // 새로운 고유 ID 생성
+      const newId = generateUniqueId();
+      setNewPageId(newId);
+
       setShowPasswordModal(false);
       setShowLinkModal(true);
-      setLinkUrl(currentLink);
+      setLinkUrl('');
       setPassword('');
     } else {
       alert('비밀번호가 틀렸습니다.');
@@ -39,20 +60,48 @@ export const Footer: React.FC = () => {
     }
   };
 
-  const handleLinkSave = (e: React.FormEvent) => {
+  const handleLinkSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const pageId = getPageId();
-    localStorage.setItem(`ctaLink_${pageId}`, linkUrl);
-    setCurrentLink(linkUrl);
-    setShowLinkModal(false);
-    alert('링크가 저장되었습니다!');
+
+    if (!linkUrl) {
+      alert('링크를 입력해주세요.');
+      return;
+    }
+
+    try {
+      // API로 링크 저장
+      const response = await fetch(`/api/links/${newPageId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          link: linkUrl,
+          password: '1234'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save link');
+      }
+
+      // URL 업데이트 (페이지 리로드 없이)
+      const baseUrl = window.location.origin + window.location.pathname;
+      const newUrl = `${baseUrl}?id=${newPageId}`;
+      window.history.pushState({}, '', newUrl);
+
+      setCurrentLink(linkUrl);
+      setShowLinkModal(false);
+      alert('링크가 저장되었습니다!\n고유 URL이 생성되었습니다.');
+    } catch (error) {
+      console.error('Error saving link:', error);
+      alert('링크 저장에 실패했습니다.');
+    }
   };
 
   const handleCtaClick = () => {
     if (currentLink) {
       window.open(currentLink, '_blank');
-    } else {
-      alert('링크를 먼저 설정해주세요.\n하단 © 2024 Review Project를 클릭하여 링크를 설정할 수 있습니다.');
     }
   };
 
