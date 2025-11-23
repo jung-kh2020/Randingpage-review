@@ -5,18 +5,22 @@ import { Redis } from '@upstash/redis';
 let redis: Redis | null = null;
 
 try {
-  const hasUrl = !!process.env.UPSTASH_REDIS_REST_URL;
-  const hasToken = !!process.env.UPSTASH_REDIS_REST_TOKEN;
+  // Vercel이 생성한 환경변수 이름 사용
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.UPSTASH_REDIS_REST_KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_KV_REST_API_TOKEN;
 
   console.log('Environment check:', {
-    hasUrl,
-    hasToken,
-    urlLength: process.env.UPSTASH_REDIS_REST_URL?.length || 0,
-    tokenLength: process.env.UPSTASH_REDIS_REST_TOKEN?.length || 0
+    hasUrl: !!url,
+    hasToken: !!token,
+    urlLength: url?.length || 0,
+    tokenLength: token?.length || 0
   });
 
-  if (hasUrl && hasToken) {
-    redis = Redis.fromEnv();
+  if (url && token) {
+    redis = new Redis({
+      url: url,
+      token: token
+    });
     console.log('Redis initialized successfully');
   } else {
     console.error('Missing Redis environment variables!');
