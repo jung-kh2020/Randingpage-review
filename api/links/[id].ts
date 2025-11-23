@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
+
+const redis = Redis.fromEnv();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { id } = req.query;
@@ -11,7 +13,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // GET: 링크 조회
   if (req.method === 'GET') {
     try {
-      const link = await kv.get(`link:${id}`);
+      const link = await redis.get(`link:${id}`);
 
       if (!link) {
         return res.status(404).json({ error: 'Link not found' });
@@ -45,8 +47,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Invalid URL format' });
       }
 
-      // KV에 저장
-      await kv.set(`link:${id}`, link);
+      // Redis에 저장
+      await redis.set(`link:${id}`, link);
 
       return res.status(200).json({ success: true, id, link });
     } catch (error) {
